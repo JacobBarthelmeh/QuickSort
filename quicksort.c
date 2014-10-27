@@ -4,15 +4,16 @@
   */
 
 #include <pthread.h>
+#include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <limits.h>
 #include <time.h>
 
 #define NUMBER_ITT  10       /* k value in experiment */
-#define MAX_ARRAY   1000000  /* max array size to go to in experiment */
+#define MAX_ARRAY   100000000  /* max array size to go to in experiment */
 #define MULTIPLIER  1        /* value to multiple array size by */
-#define ADDITION    100000   /* value to add to array size after an itt */
+#define ADDITION    10000000   /* value to add to array size after an itt */
 
 static unsigned int partitionSz;
 
@@ -30,6 +31,44 @@ struct threads {
     int max;
 };
 static struct threads threadInfo;
+
+
+/**
+  * Function to print out an array to the terminal
+  */
+int output(int* a, int sz)
+{
+    int* i;
+
+    for (i = a; i < (a + sz); i++) {
+        printf("%d\t", *i);
+    }
+    fflush(stdout);
+    printf("\n");
+
+    return 0;
+}
+
+
+/**
+  * Checks if the array of ints is sorted
+  */
+int check(int* a, int sz)
+{
+    int i;
+
+    /* check if correct */
+    for (i = 0; i <  sz - 1; i++) {
+        if (a[i] > a[i + 1]) {
+            printf("\n**Failes**\n");
+            return 1;
+        }
+    }
+
+    printf("\n**Sorted**\n");
+
+    return 0;
+}
 
 
 /* create partitions of the data */
@@ -112,12 +151,9 @@ int partition(int* data, int sz,  struct info* in1, struct info* in2)
     return 0;
 }
 
-
-void* operation(void* in)
+/* Quick sort operation */
+int qs(int* head, int sz)
 {
-    struct info* data = (struct info*)in;
-    struct info* dataTemp1;
-    struct info* dataTemp2;
     int  p; /* pivot point */
     int  v; /* pivot value */
     int* e; /* end point */
@@ -128,49 +164,37 @@ void* operation(void* in)
     int  Ih;
 
     /* case of only one element in array */
-    if (data == NULL || data->size <= 1) {
-        if (data->free)
-            free(data);
-        return NULL;
+    if (sz <= 1) {
+        return 0;
     }
 
-    if (data->size <= partitionSz) {
+    if (sz <= partitionSz) {
         /* perform insertion sort */
-        for (Ie = 0; Ie < data->size - 1; Ie++) {
+        for (Ie = 0; Ie < sz - 1; Ie++) {
             v = INT_MAX; /* max integer value */
             p = 0;
-            for (j = Ie; j < data->size; j++) {
-                if (data->head[j] < v) {
+            for (j = Ie; j < sz; j++) {
+                if (head[j] < v) {
                     p = j;
-                    v = data->head[j];
+                    v = head[j];
                 }
             }
-            temp = data->head[p];
-            data->head[p] = data->head[Ie];
-            data->head[Ie] = temp;
+            temp = head[p];
+            head[p] = head[Ie];
+            head[Ie] = temp;
         }
     }
     else {
         /* perform quick sort */
-        dataTemp1 = malloc(sizeof(struct info));
-        dataTemp2 = malloc(sizeof(struct info));
-        if (dataTemp1 == NULL || dataTemp2 == NULL) {
-            printf("Error in allocating memory!\n");
-            exit(1);
-        }
-        
-        dataTemp1->free = 1;
-        dataTemp2->free = 1;
-
-        p = data->size / 2;
-        v = data->head[p];
-        e = data->head + (data->size - 1);
-        h = data->head;
+        p = sz / 2;
+        v = head[p];
+        e = head + (sz - 1);
+        h = head;
     
         /* find the sort */
         j = 0;
         Ih = 0;
-        Ie = data->size - 1;
+        Ie = sz - 1;
         while (Ih < Ie) {
             if (*h > v && Ie >= p) {
                 while (*e > v && Ie >= p) {e--; Ie--;}
@@ -202,63 +226,37 @@ void* operation(void* in)
             }
         }
         
-        dataTemp1->size = p;
-        dataTemp1->head = data->head;
-        dataTemp2->size = data->size - p;
-        dataTemp2->head = data->head + p;
-
         if (p <= 0) {
-            dataTemp2->head++;
-            dataTemp2->size--;
-            dataTemp1->size++;
+            qs(head, p + 1);
+            qs(head + p + 1, sz - p - 1);
         }
-
-        operation((void*)dataTemp1);
-        operation((void*)dataTemp2);
+        else {
+            qs(head, p);
+            qs(head + p, sz - p);
+        }
     }
+
+    return 0;
+}
+
+
+void* operation(void* in)
+{
+    struct info* data = (struct info*)in;
+
+    /* case of only one element in array */
+    if (data == NULL || data->size <= 1) {
+        if (data->free)
+            free(data);
+        return NULL;
+    }
+
+    qs(data->head, data->size);
 
     if (data->free)
         free(data);
 
     return NULL;
-}
-
-
-/**
-  * Function to print out an array to the terminal
-  */
-int output(int* a, int sz)
-{
-    int* i;
-
-    for (i = a; i < (a + sz); i++) {
-        printf("%d\t", *i);
-    }
-    fflush(stdout);
-    printf("\n");
-
-    return 0;
-}
-
-
-/**
-  * Checks if the array of ints is sorted
-  */
-int check(int* a, int sz)
-{
-    int i;
-
-    /* check if correct */
-    for (i = 0; i <  sz - 1; i++) {
-        if (a[i] > a[i + 1]) {
-            printf("\n**Failes**\n");
-            return 1;
-        }
-    }
-
-    printf("\n**Sorted**\n");
-
-    return 0;
 }
 
 

@@ -1,11 +1,12 @@
 CC=gcc
 CFLAGS=-Wall
 LIBS=-lpthread
+TCMALLOC=-ltcmalloc -fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free
 
 all: quicksort
 
 quicksort: quicksort.o
-	$(CC) -o $@ $^ $(CFLAGS) $(LIBS)
+	$(CC) -O3 -ipo -o $@ $^ $(CFLAGS) $(LIBS)
 
 .PHONY: clean all
 
