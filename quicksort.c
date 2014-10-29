@@ -10,10 +10,10 @@
 #include <limits.h>
 #include <time.h>
 
-#define NUMBER_ITT  10       /* k value in experiment */
-#define MAX_ARRAY   100000000  /* max array size to go to in experiment */
+#define NUMBER_ITT  1       /* k value in experiment */
+#define MAX_ARRAY   10000  /* max array size to go to in experiment */
 #define MULTIPLIER  1        /* value to multiple array size by */
-#define ADDITION    10000000   /* value to add to array size after an itt */
+#define ADDITION    1000   /* value to add to array size after an itt */
 
 static unsigned int partitionSz;
 
@@ -71,7 +71,6 @@ int check(int* a, int sz)
 }
 
 
-/* create partitions of the data */
 int partition(int* data, int sz,  struct info* in1, struct info* in2)
 {
     int  p; /* pivot point */
@@ -150,6 +149,28 @@ int partition(int* data, int sz,  struct info* in1, struct info* in2)
 
     return 0;
 }
+
+void partition_helper(int a, int b)
+{
+    int dif = (b-a) + 1;
+    int ofs = a + (dif / 2);
+
+    if (a == b || b > threadInfo.numberPartitions)
+        return;
+    
+    //printf("partions %d and %d : a = %d\tb = %d\n",a,ofs,a,b);
+    partition(threadInfo.p[a].head, threadInfo.p[a].size, &threadInfo.p[a], 
+              &threadInfo.p[ofs]); 
+
+    if ((b-a) <= 1)
+        return;
+
+    if (ofs > 1) {
+        partition_helper(ofs, b);
+        partition_helper(a, ofs - 1);
+    }
+}
+
 
 /* Quick sort operation */
 int qs(int* head, int sz)
@@ -305,34 +326,7 @@ double run_test(int arrSz, int parSz, int numThreads, int seed)
     threadInfo.p = malloc(threadInfo.numberPartitions * sizeof(struct info));
 
     threadInfo.p[0] = data;
-    for (j = 1; j < threadInfo.numberPartitions; j = j * 2) {
-        int e;
-        for (e = 0; e < j; e++) {
-            partition(threadInfo.p[e].head, threadInfo.p[e].size,
-                      &threadInfo.p[e], &threadInfo.p[e + j]);
-            //output(threadInfo.p[e].head, threadInfo.p[e].size);
-            //output(threadInfo.p[e+j].head, threadInfo.p[e+j].size);
-        }
-        if (swap > 0) {
-            struct info tempData;
-            for (e = 1; e < j; e++) {
-                tempData = threadInfo.p[e];
-                threadInfo.p[e] = threadInfo.p[j-1+e];
-                threadInfo.p[j-1+e] = tempData;
-            }        
-        } 
-        swap++;
-    }
-
-    /* malloc space for each thread to check if cahing is taking a hit */
-    i = a;
-    for (j = 0; j < threadInfo.numberThreads; j++) {
-        threadInfo.p[j].head = malloc(threadInfo.p[j].size * sizeof(int));
-        for (int e = 0; e < threadInfo.p[j].size; e++) {
-            threadInfo.p[j].head[e] = *i;
-            i++;
-        }
-    }
+    partition_helper(0, threadInfo.numberPartitions - 1);
 
     /* create threads */
     for (j = 0; threadInfo.numberThreads > 0; threadInfo.numberThreads--) {
@@ -345,7 +339,7 @@ double run_test(int arrSz, int parSz, int numThreads, int seed)
     swap = threadInfo.max;
 chopper:
     for (j = 0; j < threadInfo.max; j++) {
-        if (threadInfo.t[j] == NULL)
+        if (!threadInfo.t[j])
             printf("thread was null\n");
         pthread_join(threadInfo.t[j], NULL);
         /* case when there is more partitions than threads */
@@ -366,17 +360,9 @@ chopper:
         goto chopper;
     }
 
-    /* Put values back into main array */
-    i = a;
-    for (j = 0; j < threadInfo.max; j++) {
-        for (int e = 0; e < threadInfo.p[j].size; e++) {
-            *i = threadInfo.p[j].head[e];
-            i++;
-        }
-        free(threadInfo.p[j].head);
-    }
     end = clock();
 
+    /* uncomment to have the array checked */
     //check(a, arrSz);
 
     /* clean up */

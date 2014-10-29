@@ -6,7 +6,7 @@ TCMALLOC=-ltcmalloc -fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc
 all: quicksort
 
 quicksort: quicksort.o
-	$(CC) -O3 -ipo -o $@ $^ $(CFLAGS) $(LIBS)
+	$(CC) -O3 -o $@ $^ $(CFLAGS) $(LIBS)
 
 .PHONY: clean all
 
